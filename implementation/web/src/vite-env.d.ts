@@ -9,3 +9,12 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
+
+/** Written by docker-entrypoint.sh in the container, by public/config.js in dev. */
+interface Window {
+  __APP_CONFIG__?: {
+    transactionsApiUrl?: string
+    categoriesApiUrl?: string
+    accessToken?: string
+  }
+}

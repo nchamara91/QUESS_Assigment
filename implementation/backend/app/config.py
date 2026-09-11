@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     auth_hs256_secret: str = "assignment-dev-secret"
     port: int = 8081
 
+    # Comma-separated browser origins allowed to call this API. The web client in
+    # docker compose is served from one of these; override in production.
+    cors_allow_origins: str = "http://localhost:5173,http://localhost:4173"
+
     # Upstream reads are bounded; the contract names two seconds for a failure to
     # become `transactions_unavailable`.
     transactions_timeout_seconds: float = 2.0

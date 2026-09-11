@@ -6,7 +6,7 @@
   "packageManager": "pnpm@9.15.0",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc -p tsconfig.build.json && vite build",
     "preview": "vite preview",
     "generate": "rtk-query-codegen-openapi src/api/codegen.transactions.cjs && rtk-query-codegen-openapi src/api/codegen.categories.cjs",
     "typecheck": "tsc --noEmit",

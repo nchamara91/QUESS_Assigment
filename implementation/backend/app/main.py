@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import assignments, categories
 from app.config import get_settings
@@ -34,6 +35,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     """Build the ASGI application."""
+    settings = get_settings()
     app = FastAPI(
         title="Transaction categories (public)",
         version="0.1.0",
@@ -42,6 +44,14 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json",
     )
     app.add_middleware(RequestContextMiddleware)
+    # Added last, so it is the outermost user middleware and its headers survive
+    # the error paths the browser needs them on.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[origin.strip() for origin in settings.cors_allow_origins.split(",") if origin.strip()],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     register_exception_handlers(app)
     app.include_router(categories.router)
     app.include_router(assignments.router)

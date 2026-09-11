@@ -47,7 +47,17 @@ docker compose up -d --build
 CATEGORIES_URL=http://localhost:8081 node acceptance/run.mjs   # 66/66
 ```
 
-Start the web client against the mock alone, or the mock plus this backend:
+`docker compose up` also builds the web client and serves it through nginx on
+**http://localhost:5173**. Put a token in the root `.env`
+(`VITE_ACCESS_TOKEN=$(node mock/token.mjs owner-a)`) and restart the web service;
+the browser-facing API URLs are injected at container start, so they can change
+without a rebuild:
+
+```bash
+VITE_CATEGORIES_API_URL=http://localhost:8080 docker compose up -d web
+```
+
+Or run the client locally against the same APIs:
 
 ```bash
 pnpm --dir implementation/web install
