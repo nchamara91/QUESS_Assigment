@@ -1,0 +1,257 @@
+:root {
+  /* The eight contract palette tokens plus a legible unknown fallback. */
+  --chip-slate-bg: #f1f5f9;
+  --chip-slate-fg: #0f172a;
+  --chip-slate-border: #cbd5e1;
+  --chip-blue-bg: #dbeafe;
+  --chip-blue-fg: #1e3a8a;
+  --chip-blue-border: #93c5fd;
+  --chip-teal-bg: #ccfbf1;
+  --chip-teal-fg: #134e4a;
+  --chip-teal-border: #5eead4;
+  --chip-green-bg: #dcfce7;
+  --chip-green-fg: #14532d;
+  --chip-green-border: #86efac;
+  --chip-amber-bg: #fef3c7;
+  --chip-amber-fg: #78350f;
+  --chip-amber-border: #fcd34d;
+  --chip-orange-bg: #ffedd5;
+  --chip-orange-fg: #7c2d12;
+  --chip-orange-border: #fdba74;
+  --chip-red-bg: #fee2e2;
+  --chip-red-fg: #7f1d1d;
+  --chip-red-border: #fca5a5;
+  --chip-purple-bg: #ede9fe;
+  --chip-purple-fg: #4c1d95;
+  --chip-purple-border: #c4b5fd;
+  --chip-unknown-bg: #e5e7eb;
+  --chip-unknown-fg: #111827;
+  --chip-unknown-border: #9ca3af;
+
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: #0f172a;
+  background: #f8fafc;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+select,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.feed {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.transaction-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.transaction-row__open {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 1rem;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  width: 100%;
+}
+
+.transaction-row__category {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.transaction-row__amount--out {
+  color: #b91c1c;
+}
+
+.transaction-row__amount--in {
+  color: #15803d;
+}
+
+.transaction-row__error {
+  grid-column: 1 / -1;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.chip--empty {
+  background: #f1f5f9;
+  color: #64748b;
+  border-color: #cbd5e1;
+}
+
+.status {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.status--failed {
+  color: #b91c1c;
+}
+
+.status--pending {
+  color: #b45309;
+}
+
+.status--confirmed {
+  color: #15803d;
+}
+
+.error {
+  color: #b91c1c;
+}
+
+.error-block {
+  margin: 1rem 0;
+}
+
+.empty {
+  color: #64748b;
+}
+
+.muted {
+  color: #64748b;
+}
+
+.load-more {
+  margin-top: 1rem;
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(420px, 100%);
+  height: 100%;
+  background: #fff;
+  border-left: 1px solid #e2e8f0;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.drawer__fields {
+  display: grid;
+  grid-template-columns: 8rem 1fr;
+  gap: 0.25rem 0.75rem;
+}
+
+.drawer__category {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgb(15 23 42 / 45%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.dialog {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  width: min(640px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.dialog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.category-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.category-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.category-row input {
+  flex: 1;
+}
+
+.category-create {
+  display: grid;
+  gap: 0.5rem;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 1rem;
+  margin-top: 1rem;
+}
