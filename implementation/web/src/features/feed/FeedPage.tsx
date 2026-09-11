@@ -1,40 +1,49 @@
 import { skipToken } from '@reduxjs/toolkit/query'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import type { TransactionCategoryAssignment } from '../../api/generated/categoriesApi'
 import {
   useListTransactionCategoriesQuery,
   useLookupTransactionCategoryAssignmentsQuery,
 } from '../../api/generated/categoriesApi'
-import type { Transaction } from '../../api/generated/transactionsApi'
+import type { ListTransactionsApiArg } from '../../api/generated/transactionsApi'
 import { useListTransactionsQuery } from '../../api/generated/transactionsApi'
 import { errorMessage } from '../../lib/errors'
-import { accumulatePage } from '../../lib/paging'
 import { ManageCategoriesDialog } from '../category/ManageCategoriesDialog'
 import { useCategorisation } from '../category/useCategorisation'
 import { TransactionDrawer } from './TransactionDrawer'
+import { TransactionFilters } from './TransactionFilters'
+import {
+  EMPTY_FILTERS,
+  hasActiveFilters,
+  toAppliedFilters,
+  type AppliedFilters,
+  type FilterDraft,
+} from './filters'
+import { visiblePages } from './pagination'
 import { TransactionRow } from './TransactionRow'
 
 const PAGE_SIZE = 20
 
 export function FeedPage() {
   const [page, setPage] = useState(1)
-  const [items, setItems] = useState<Transaction[]>([])
+  const [filters, setFilters] = useState<FilterDraft>({ ...EMPTY_FILTERS })
+  const [appliedFilters, setAppliedFilters] = useState<AppliedFilters>({})
   const [openTransactionId, setOpenTransactionId] = useState<string | null>(null)
   const [manageOpen, setManageOpen] = useState(false)
 
-  const feed = useListTransactionsQuery({ pageSize: PAGE_SIZE, page, sortOrder: 'desc' })
+  const feedArgs: ListTransactionsApiArg = useMemo(
+    () => ({ pageSize: PAGE_SIZE, page, sortOrder: 'desc', ...appliedFilters }),
+    [appliedFilters, page],
+  )
+  const feed = useListTransactionsQuery(feedArgs)
   const categoriesQuery = useListTransactionCategoriesQuery({})
+  const items = useMemo(() => feed.data?.data.items ?? [], [feed.data])
+  const pageMeta = feed.data?.data.page
+  const totalPages = pageMeta === undefined ? 1 : Math.max(1, Math.ceil(pageMeta.total / pageMeta.page_size))
+  const pageControls = visiblePages(page, totalPages)
 
-  useEffect(() => {
-    const payload = feed.data
-    if (payload === undefined) {
-      return
-    }
-    setItems((previous) => accumulatePage(previous, payload))
-  }, [feed.data])
-
-  // One assignments lookup per loaded page, never one per row.
+  // One assignments lookup for the current page, never one per row.
   const transactionIds = useMemo(() => items.map((item) => item.transaction_id), [items])
   const assignmentsQuery = useLookupTransactionCategoryAssignmentsQuery(
     transactionIds.length > 0 ? { transactionId: transactionIds } : skipToken,
@@ -54,6 +63,18 @@ export function FeedPage() {
     [categories],
   )
   const changes = useCategorisation(assignments)
+  const filtersAreActive = hasActiveFilters(appliedFilters)
+
+  const applyFilters = (): void => {
+    setAppliedFilters(toAppliedFilters(filters))
+    setPage(1)
+  }
+
+  const clearFilters = (): void => {
+    setFilters({ ...EMPTY_FILTERS })
+    setAppliedFilters({})
+    setPage(1)
+  }
 
   return (
     <main className="page">
@@ -67,6 +88,14 @@ export function FeedPage() {
           Manage categories
         </button>
       </header>
+
+      <TransactionFilters
+        value={filters}
+        hasAppliedFilters={filtersAreActive}
+        onChange={setFilters}
+        onApply={applyFilters}
+        onClear={clearFilters}
+      />
 
       {categoriesQuery.error !== undefined && (
         <div className="error-block">
@@ -93,7 +122,19 @@ export function FeedPage() {
       )}
 
       {!feed.isLoading && feed.error === undefined && items.length === 0 && (
-        <p className="empty">No transactions yet.</p>
+        <p className="empty">
+          {filtersAreActive ? 'No transactions match these filters.' : 'No transactions yet.'}
+        </p>
+      )}
+
+      {pageMeta !== undefined && pageMeta.total > 0 && (
+        <div className="feed-summary">
+          <span>
+            Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, pageMeta.total)} of{' '}
+            {pageMeta.total} transactions
+          </span>
+          {feed.isFetching && <span className="feed-summary__refresh">Updating…</span>}
+        </div>
       )}
 
       <ul className="feed">
@@ -115,15 +156,48 @@ export function FeedPage() {
         })}
       </ul>
 
-      {feed.data?.data.page.has_more === true && (
-        <button
-          type="button"
-          className="load-more"
-          onClick={() => setPage((previous) => previous + 1)}
-          disabled={feed.isFetching}
-        >
-          {feed.isFetching ? 'Loading…' : 'Load more'}
-        </button>
+      {pageMeta !== undefined && totalPages > 1 && (
+        <nav className="pagination" aria-label="Transaction pages">
+          <button
+            type="button"
+            className="pagination__arrow"
+            disabled={page === 1 || feed.isFetching}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            aria-label="Previous page"
+          >
+            ← <span>Previous</span>
+          </button>
+          <div className="pagination__pages">
+            {pageControls.map((control, index) =>
+              control === 'ellipsis' ? (
+                <span key={`ellipsis-${index}`} className="pagination__ellipsis" aria-hidden="true">
+                  …
+                </span>
+              ) : (
+                <button
+                  key={control}
+                  type="button"
+                  className={control === page ? 'pagination__page pagination__page--active' : 'pagination__page'}
+                  aria-current={control === page ? 'page' : undefined}
+                  aria-label={`Go to page ${control}`}
+                  onClick={() => setPage(control)}
+                  disabled={feed.isFetching}
+                >
+                  {control}
+                </button>
+              ),
+            )}
+          </div>
+          <button
+            type="button"
+            className="pagination__arrow"
+            disabled={page === totalPages || feed.isFetching}
+            onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+            aria-label="Next page"
+          >
+            <span>Next</span> →
+          </button>
+        </nav>
       )}
 
       <TransactionDrawer

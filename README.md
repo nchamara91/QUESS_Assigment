@@ -108,6 +108,11 @@ corepack pnpm dev
 The root `.env` drives the container; `implementation/web/.env` is read only by
 the Vite dev server.
 
+The feed supports the transaction filters defined by the existing contract:
+search, kind, status, date range and USDC amount range. Results use numbered
+pagination with 20 rows per page. Filtering by category remains out of scope per
+the assignment.
+
 ## Status
 
 The backend implements the contract and passes the acceptance suite

@@ -34,8 +34,9 @@ its tests carry the detail; the brief itself is `docs/ASSIGNMENT.md`.
 - **One assignments lookup per loaded page** — the page's ids are the query arg.
 - **Tests run on happy-dom** — jsdom's `AbortSignal` clashes with undici/MSW.
 - **Codegen configs are `.cjs`** — the CLI cannot load a TS config without ts-node.
-- **Pages merge, de-duplicated by `transaction_id`** — a feed that shifts between
-  fetches cannot show a row twice.
+- **Explicit pagination keeps one page in memory** — it is easier to reconcile,
+  bookmark and filter a banking feed than an ever-growing "load more" list; one
+  assignments lookup receives exactly the current page's ids.
 - **The manage dialog manages focus itself** — in on open, Tab trapped, restored
   on Escape.
 

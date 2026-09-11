@@ -917,6 +917,248 @@ p[role='status']::after {
 }
 
 /* ============================================================================
+   Filters, results summary and pagination
+   ========================================================================== */
+
+.transaction-filters {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--surface) 94%, var(--accent-soft));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
+}
+
+.transaction-filters__primary,
+.transaction-filters__secondary {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.transaction-filters__primary {
+  grid-template-columns: minmax(13rem, 1.4fr) minmax(9rem, 0.7fr) minmax(16rem, 2fr);
+}
+
+.transaction-filters__secondary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.filter-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.filter-field > span,
+.filter-field legend {
+  padding: 0;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.filter-field input,
+.filter-field select {
+  width: 100%;
+  min-width: 0;
+  height: 2.25rem;
+}
+
+.filter-field--statuses {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.status-options {
+  display: flex;
+  min-height: 2.25rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.status-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.status-option:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.status-option input {
+  width: 0.85rem;
+  height: 0.85rem;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+.transaction-filters__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 0.85rem;
+}
+
+.filter-apply {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 650;
+}
+
+.filter-apply:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.filter-clear {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.feed-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 1rem 0 0.6rem;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.feed-summary__refresh {
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding: 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+}
+
+.pagination__pages {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.pagination__page,
+.pagination__arrow {
+  min-width: 2.15rem;
+  height: 2.15rem;
+  padding: 0.25rem 0.55rem;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+
+.pagination__arrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: auto;
+}
+
+.pagination__page:hover:not(:disabled),
+.pagination__arrow:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border);
+}
+
+.pagination__page--active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.pagination__page--active:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.pagination__ellipsis {
+  width: 1.25rem;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+@media (max-width: 860px) {
+  .transaction-filters__primary {
+    grid-template-columns: minmax(12rem, 1.2fr) minmax(9rem, 0.8fr);
+  }
+
+  .filter-field--statuses {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .transaction-filters__primary,
+  .transaction-filters__secondary {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .filter-field--search,
+  .filter-field--statuses {
+    grid-column: 1 / -1;
+  }
+
+  .transaction-filters__actions {
+    justify-content: stretch;
+  }
+
+  .filter-apply,
+  .filter-clear {
+    flex: 1;
+  }
+
+  .pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .pagination__arrow span {
+    display: none;
+  }
+}
+
+/* ============================================================================
    Utilities and motion
    ========================================================================== */
 
