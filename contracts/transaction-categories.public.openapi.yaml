@@ -1,0 +1,555 @@
+openapi: 3.0.3
+info:
+  title: Transaction categories (public)
+  version: 0.1.0
+  description: |
+    Organisation-scoped categories for the transaction feed.
+
+    A category is a label an organisation puts on a transaction so that its feed can be read by purpose
+    ("Payroll", "Suppliers", "Taxes") rather than only by counterparty and amount. Categories never change
+    money: assigning, changing or deleting one has no effect on balances, statuses, fees or ledger entries.
+
+    Every organisation has the same nine **system** categories from its very first request (their `code`, `name`
+    and canonical order are fixed below) and may add up to 50 **custom** categories of its own. System
+    categories cannot be renamed, recoloured or deleted.
+
+    A transaction carries at most one category. Assignments are organisation-scoped: the same transaction id
+    seen by another organisation (impossible in production, but the model must not rely on that) has its own
+    assignment state.
+
+    Conventions shared with the rest of the client contract (see `openapi-common.yaml`):
+    every success is `{ "data": ..., "correlation_id": "<uuid>" }`; every domain error is
+    `{ "type", "correlation_id", "error": { "code", "message", "data"? } }`; every 422 is the
+    validation map `{ "type": "ValidationError", "correlation_id", "error": { "<field>": [ { "code", "message" } ] } }`
+    where form-level problems live under the reserved key `non_field_errors`.
+
+    Error codes used by this domain:
+
+    | HTTP | `error.code` | When |
+    |------|--------------|------|
+    | 401 | `unauthorized` | Bearer token missing, malformed, expired or with a bad signature |
+    | 403 | `organization_context_forbidden` | `X-Organization-Id` names an organisation the subject is not an ACTIVE member of |
+    | 404 | `transaction_category_not_found` | Unknown id, or a category of another organisation (existence is never leaked) |
+    | 404 | `transaction_not_found` | The transactions API does not show this transaction to the organisation |
+    | 409 | `transaction_category_name_taken` | Another category of the organisation already has this name (case-insensitive, after trimming) |
+    | 409 | `transaction_category_limit_reached` | The organisation already has 50 custom categories |
+    | 409 | `system_category_immutable` | Rename, recolour or delete attempted on a system category |
+    | 422 | (validation map) | Field-level problems; issue codes are `required`, `blank`, `too_long`, `invalid_choice`, `invalid_format`, `too_many_items`, `empty` |
+    | 503 | `transactions_unavailable` | The transactions API could not be reached while validating a transaction |
+
+servers:
+  - url: http://localhost:8081
+    description: Candidate backend (local)
+  - url: http://localhost:8080
+    description: Reference mock shipped with the assignment (same contract, in-memory)
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: transaction-categories
+    description: Category dictionary of an organisation
+  - name: transaction-category-assignments
+    description: Which category a transaction carries
+
+x-system-categories:
+  description: |
+    Seeded for every organisation, in this order, with these exact codes and names. The `category_id` of a system
+    category is minted per organisation (two organisations never share an id), but `code` is the stable identity
+    clients may key on.
+  items:
+    - { code: income,     name: Income,            color: green }
+    - { code: payroll,    name: Payroll,           color: blue }
+    - { code: suppliers,  name: Suppliers,         color: teal }
+    - { code: taxes,      name: Taxes,             color: red }
+    - { code: fees,       name: Fees,              color: amber }
+    - { code: software,   name: Software,          color: purple }
+    - { code: travel,     name: Travel,            color: orange }
+    - { code: transfer,   name: Internal transfer, color: slate }
+    - { code: other,      name: Other,             color: slate }
+
+paths:
+  /api/v1/app/transaction-categories:
+    get:
+      tags: [transaction-categories]
+      operationId: listTransactionCategories
+      summary: List the categories of the organisation
+      description: |
+        System categories first, in the canonical order of `x-system-categories`, then custom categories ordered by
+        `name` (case-insensitive) and `created_at`. Never empty: the nine system categories exist for every
+        organisation from its first request, whichever endpoint that request hits.
+      parameters:
+        - $ref: '#/components/parameters/OrganizationIdHeader'
+      responses:
+        '200':
+          description: Category list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeTransactionCategoryList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [transaction-categories]
+      operationId: createTransactionCategory
+      summary: Create a custom category
+      description: |
+        `name` is trimmed before validation and storage; it must be 1–40 characters after trimming and unique among
+        the organisation's categories, system ones included, compared case-insensitively (Unicode case folding).
+        At most 50 custom categories per organisation.
+      parameters:
+        - $ref: '#/components/parameters/OrganizationIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionCategoryCreate'
+      responses:
+        '201':
+          description: Category created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeTransactionCategory'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: '`transaction_category_name_taken` (with `data.category_id` of the holder) or `transaction_category_limit_reached` (with `data.limit`)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/app/transaction-categories/{category_id}:
+    parameters:
+      - $ref: '#/components/parameters/CategoryId'
+      - $ref: '#/components/parameters/OrganizationIdHeader'
+    patch:
+      tags: [transaction-categories]
+      operationId: updateTransactionCategory
+      summary: Rename or recolour a custom category
+      description: |
+        Partial update: at least one of `name`, `color` must be present (otherwise 422 `non_field_errors: empty`).
+        The same name rules as on create apply; a category may keep its own name. System categories are
+        immutable: `409 system_category_immutable`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionCategoryUpdate'
+      responses:
+        '200':
+          description: Updated category
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeTransactionCategory'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: '`system_category_immutable` or `transaction_category_name_taken`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      tags: [transaction-categories]
+      operationId: deleteTransactionCategory
+      summary: Delete a custom category
+      description: |
+        Hard delete. Every transaction that carried the category becomes uncategorised in the same request
+        (a later lookup returns `category_id: null` for it). System categories: `409 system_category_immutable`.
+        Deleting an already deleted or unknown id is `404`.
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: '`system_category_immutable`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/app/transactions/{transaction_id}/category:
+    put:
+      tags: [transaction-category-assignments]
+      operationId: setTransactionCategory
+      summary: Set or clear the category of a transaction
+      description: |
+        Idempotent: the same body twice leaves the same state and answers 200 both times. `category_id: null`
+        clears the assignment.
+
+        Before writing, the service confirms the transaction is visible to the organisation by reading
+        `GET /api/v1/app/transactions/{transaction_id}` on the transactions API with the caller's bearer and
+        `X-Organization-Id`. A 404 there is `404 transaction_not_found` here; a network failure, timeout or 5xx
+        there is `503 transactions_unavailable` here and nothing is written. Transactions in any status,
+        including `failed`, may be categorised.
+
+        `assigned_by` is the bearer subject (`sub` claim) of the caller that last set a non-null category.
+      parameters:
+        - $ref: '#/components/parameters/TransactionId'
+        - $ref: '#/components/parameters/OrganizationIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionCategoryAssignmentSet'
+      responses:
+        '200':
+          description: Current assignment of the transaction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeTransactionCategoryAssignment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: '`transaction_not_found` or `transaction_category_not_found`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '503':
+          description: '`transactions_unavailable`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/app/transaction-category-assignments:
+    get:
+      tags: [transaction-category-assignments]
+      operationId: lookupTransactionCategoryAssignments
+      summary: Look up the categories of up to 100 transactions
+      description: |
+        Batch read for one page of the feed. Exactly one item per distinct requested `transaction_id`, in the
+        order first requested; a transaction with no assignment comes back with `category_id: null`. Unknown ids
+        are not validated against the transactions API here (that happens on write) and simply read as
+        unassigned. Fewer than 1 or more than 100 ids, or an id that does not match the pattern, is a 422 on
+        `transaction_id`.
+      parameters:
+        - name: transaction_id
+          in: query
+          required: true
+          description: Repeatable, 1–100 values
+          style: form
+          explode: true
+          schema:
+            type: array
+            minItems: 1
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/CoreTransactionId'
+        - $ref: '#/components/parameters/OrganizationIdHeader'
+      responses:
+        '200':
+          description: Assignments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeTransactionCategoryAssignmentList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        For this assignment tokens are HS256 JWTs minted by `mock/token.mjs` with the shared development secret.
+        Claims: `sub` (subject), `email`, `orgs` (UUIDs of the organisations the subject is an ACTIVE member of),
+        `iat`, `exp`, `iss: assignment-mock`.
+
+  parameters:
+    OrganizationIdHeader:
+      name: X-Organization-Id
+      in: header
+      required: false
+      schema:
+        type: string
+        format: uuid
+      description: |
+        The organisation the caller acts in for this request. Must be one of the bearer's `orgs`, otherwise
+        `403 organization_context_forbidden`. Without the header the first organisation of `orgs` is used.
+        A value that is not a UUID is `400 validation_error`.
+    CategoryId:
+      name: category_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/TransactionCategoryId'
+    TransactionId:
+      name: transaction_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/CoreTransactionId'
+
+  responses:
+    Unauthorized:
+      description: '`unauthorized`'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: '`organization_context_forbidden`'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: '`transaction_category_not_found`'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationError:
+      description: Validation map, keyed by field name
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+
+  schemas:
+    CoreTransactionId:
+      type: string
+      pattern: ^txn_[0-9a-f]{32}$
+      description: Transaction identifier as served by the transactions API
+    TransactionCategoryId:
+      type: string
+      format: uuid
+    TransactionCategoryKind:
+      type: string
+      enum: [system, custom]
+    TransactionCategoryColor:
+      type: string
+      description: Palette token; the client maps it to its own design tokens
+      enum: [slate, blue, teal, green, amber, orange, red, purple]
+    TransactionCategoryCode:
+      type: string
+      pattern: ^[a-z_]{2,32}$
+      description: Stable identity of a system category (see `x-system-categories`); null for custom ones
+    TransactionCategoryName:
+      type: string
+      minLength: 1
+      maxLength: 40
+      description: Trimmed; unique per organisation case-insensitively
+
+    TransactionCategory:
+      type: object
+      additionalProperties: false
+      required: [category_id, kind, code, name, color, created_at, updated_at]
+      properties:
+        category_id:
+          $ref: '#/components/schemas/TransactionCategoryId'
+        kind:
+          $ref: '#/components/schemas/TransactionCategoryKind'
+        code:
+          allOf:
+            - $ref: '#/components/schemas/TransactionCategoryCode'
+          nullable: true
+        name:
+          $ref: '#/components/schemas/TransactionCategoryName'
+        color:
+          $ref: '#/components/schemas/TransactionCategoryColor'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      example:
+        category_id: 6f1d2c0e-9b3a-4e7f-8a21-0c5d3e4f5a6b
+        kind: custom
+        code: null
+        name: Marketing
+        color: purple
+        created_at: '2026-09-08T10:15:00Z'
+        updated_at: '2026-09-08T10:15:00Z'
+
+    TransactionCategoryCreate:
+      type: object
+      additionalProperties: false
+      required: [name, color]
+      properties:
+        name:
+          $ref: '#/components/schemas/TransactionCategoryName'
+        color:
+          $ref: '#/components/schemas/TransactionCategoryColor'
+
+    TransactionCategoryUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      description: At least one property; absent properties keep their value
+      properties:
+        name:
+          $ref: '#/components/schemas/TransactionCategoryName'
+        color:
+          $ref: '#/components/schemas/TransactionCategoryColor'
+
+    TransactionCategoryAssignmentSet:
+      type: object
+      additionalProperties: false
+      required: [category_id]
+      properties:
+        category_id:
+          allOf:
+            - $ref: '#/components/schemas/TransactionCategoryId'
+          nullable: true
+          description: '`null` clears the category'
+
+    TransactionCategoryAssignment:
+      type: object
+      additionalProperties: false
+      required: [transaction_id, category_id, assigned_at, assigned_by]
+      properties:
+        transaction_id:
+          $ref: '#/components/schemas/CoreTransactionId'
+        category_id:
+          allOf:
+            - $ref: '#/components/schemas/TransactionCategoryId'
+          nullable: true
+        assigned_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the current non-null category was set; null when unassigned
+        assigned_by:
+          type: string
+          maxLength: 128
+          nullable: true
+          description: Bearer subject that set the current non-null category; null when unassigned
+
+    Envelope:
+      type: object
+      required: [correlation_id]
+      properties:
+        correlation_id:
+          type: string
+          format: uuid
+    EnvelopeTransactionCategory:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/TransactionCategory'
+    EnvelopeTransactionCategoryList:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/TransactionCategory'
+    EnvelopeTransactionCategoryAssignment:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/TransactionCategoryAssignment'
+    EnvelopeTransactionCategoryAssignmentList:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/TransactionCategoryAssignment'
+
+    ErrorResponse:
+      type: object
+      required: [type, correlation_id, error]
+      properties:
+        type:
+          type: string
+        correlation_id:
+          type: string
+          format: uuid
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            data:
+              type: object
+              additionalProperties: true
+    ValidationIssue:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Stable machine-readable identifier, snake_case
+        message:
+          type: string
+        data:
+          type: object
+          additionalProperties: true
+    ValidationErrorResponse:
+      type: object
+      required: [type, correlation_id, error]
+      properties:
+        type:
+          type: string
+          enum: [ValidationError]
+        correlation_id:
+          type: string
+          format: uuid
+        error:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/ValidationIssue'

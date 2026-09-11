@@ -1,0 +1,13 @@
+# `npx @redocly/cli lint` configuration for the contracts in this package.
+# The client contract uses `allOf: [$ref] + nullable: true` for nullable
+# references (OpenAPI 3.0 has no other way to say it) and `default` next to a $ref;
+# the generators we use (@rtk-query/codegen-openapi, openapi-typescript) read both.
+rules:
+  nullable-type-sibling: off
+  spec-ref-siblings: off
+  no-server-example.com: off
+  info-license: off
+  tag-description: off
+  operation-4xx-response: off
+  no-invalid-schema-examples: off
+  no-invalid-media-type-examples: off

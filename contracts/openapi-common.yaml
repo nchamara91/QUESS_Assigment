@@ -1,0 +1,152 @@
+openapi: 3.0.3
+info:
+  title: Client API — shared components
+  version: 1.0.0
+paths: {}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    registrationToken:
+      type: apiKey
+      in: header
+      name: X-Registration-Token
+    internalToken:
+      type: apiKey
+      in: header
+      name: X-Internal-Token
+  responses:
+    Unauthorized:
+      description: Missing or invalid credentials
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationError:
+      description: >-
+        Field validation failed. The body is the validation map, not the
+        single-object domain error: `error` is keyed by field name and each value
+        is an array of issues.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+    Conflict:
+      description: State conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    TooManyRequests:
+      description: Rate limited
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Action blocked by product gate (KYB tier, account status)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    ErrorResponse:
+      type: object
+      required:
+      - type
+      - correlation_id
+      - error
+      properties:
+        type:
+          type: string
+        correlation_id:
+          type: string
+          format: uuid
+        error:
+          type: object
+          required:
+          - code
+          - message
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            data:
+              type: object
+              additionalProperties: true
+    ValidationIssue:
+      type: object
+      required:
+      - code
+      - message
+      properties:
+        code:
+          type: string
+          description: Stable machine-readable identifier, snake_case.
+        message:
+          type: string
+          description: Human-readable English string.
+        data:
+          type: object
+          additionalProperties: true
+          description: Optional context; omitted or `{}` when empty.
+    ValidationErrorResponse:
+      type: object
+      required:
+      - type
+      - correlation_id
+      - error
+      description: >-
+        The 422 body produced by the services' validation
+        handler. It differs from `ErrorResponse` in one place that matters to a
+        generated client: `error` is a map from field name to a list of issues,
+        not a single issue object. The reserved key `non_field_errors` carries
+        form-level problems that belong to no single field.
+      properties:
+        type:
+          type: string
+          enum: [ValidationError]
+        correlation_id:
+          type: string
+          format: uuid
+        error:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/ValidationIssue'
+    Envelope:
+      type: object
+      required: [correlation_id]
+      description: >
+        Base success envelope shell. Do not reference directly in operation responses;
+        use Envelope{Payload} schemas with typed `data`.
+      properties:
+        correlation_id:
+          type: string
+          format: uuid
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+      description: >-
+        Caller-generated key naming one logical command; a UUID is the recommended
+        form. Reuse the same key only to retry that exact command — the server
+        never generates a key on the caller's behalf, so a retry after an
+        ambiguous outcome must present the original key. Lookup scope, fingerprint
+        and replay semantics are operation-specific and documented on each
+        operation and in API-Conventions.

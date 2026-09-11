@@ -1,0 +1,86 @@
+{
+  "organization_id": "3f9c2a1e-6b7d-4e8f-9a0b-1c2d3e4f5a61",
+  "items": [
+    {
+      "category_id": "33df440d-a82f-42ae-ae2f-7530b5eb3be4",
+      "kind": "system",
+      "code": "income",
+      "name": "Income",
+      "color": "green",
+      "created_at": "2026-05-11T12:00:00Z",
+      "updated_at": "2026-05-11T12:00:00Z"
+    },
+    {
+      "category_id": "60e3e485-87a7-4164-bada-81d70cf1061d",
+      "kind": "system",
+      "code": "payroll",
+      "name": "Payroll",
+      "color": "blue",
+      "created_at": "2026-05-11T12:00:00Z",
+      "updated_at": "2026-05-11T12:00:00Z"
+    },
+    {
+      "category_id": "78f90b20-c1d6-48f2-bbd0-18a55fbc76cb",
+      "kind": "system",
+      "code": "suppliers",
+      "name": "Suppliers",
+      "color": "teal",
+      "created_at": "2026-05-11T12:00:00Z",
+      "updated_at": "2026-05-11T12:00:00Z"
+    },
+    {
+      "category_id": "d8944dff-c5b9-48c0-aaa0-77cd88f3d8ae",
+      "kind": "system",
+      "code": "taxes",
+      "name": "Taxes",
+      "color": "red",
+      "created_at": "2026-05-11T12:00:00Z",
+      "updated_at": "2026-05-11T12:00:00Z"
+    },
+    {
+      "category_id": "d9347f58-0361-4487-b6cc-382d8a462dc3",
+      "kind": "system",
+      "code": "fees",
+      "name": "Fees",
+      "color": "amber",
+      "created_at": "2026-05-11T12:00:00Z",
+      "updated_at": "2026-05-11T12:00:00Z"
+    },
+    {
+      "category_id": "7eb32945-3630-42ee-b4b9-6253b0b5bb04",
+      "kind": "system",
+      "code": "software",
+      "name": "Software",
+      "color": "purple",
+      "created_at": "2026-05-11T12:00:00Z",
+      "updated_at": "2026-05-11T12:00:00Z"
+    },
+    {
+      "category_id": "8878952c-63e3-458c-aa4d-594e3d67b106",
+      "kind": "system",
+      "code": "travel",
+      "name": "Travel",
+      "color": "orange",
+      "created_at": "2026-05-11T12:00:00Z",
+      "updated_at": "2026-05-11T12:00:00Z"
+    },
+    {
+      "category_id": "dd8b4ccd-13f7-437b-a3e5-a3f666d94d64",
+      "kind": "system",
+      "code": "transfer",
+      "name": "Internal transfer",
+      "color": "slate",
+      "created_at": "2026-05-11T12:00:00Z",
+      "updated_at": "2026-05-11T12:00:00Z"
+    },
+    {
+      "category_id": "446e0398-454c-4ae8-a429-b58746106620",
+      "kind": "system",
+      "code": "other",
+      "name": "Other",
+      "color": "slate",
+      "created_at": "2026-05-11T12:00:00Z",
+      "updated_at": "2026-05-11T12:00:00Z"
+    }
+  ]
+}

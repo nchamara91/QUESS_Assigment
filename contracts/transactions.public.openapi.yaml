@@ -1,0 +1,579 @@
+openapi: 3.0.3
+info:
+  title: Transactions (public, read surface)
+  version: 1.0.0
+  description: |
+    Read surface of the transaction feed as served by the app backend. This is an excerpt of the production client contract: every field, enum and error here is what the web and iOS clients already consume. The categories domain (see transaction-categories.public.openapi.yaml) builds on top of it and does not change it.
+servers:
+- url: http://localhost:8080
+  description: Reference mock shipped with the assignment
+security:
+- bearerAuth: []
+tags:
+- name: transactions
+paths:
+  /api/v1/app/transactions:
+    get:
+      tags:
+      - transactions
+      operationId: listTransactions
+      summary: List transactions (account or wallet scope)
+      description: |
+        Provider-neutral transaction feed of the organisation the caller acts in. Scope by `account_id` (all wallets under the account) or `wallet_id` (one wallet); with both omitted the feed is organisation-wide.
+
+        Date range, multi-status, amount bounds and `search` are applied server-side; `page.total` counts the filtered set. Inverted bounds, or `date_from`/`date_to` without a time-zone offset, yield 422.
+
+        `presentation_currency` changes what the amount bounds mean: they are read as minor units of that currency and every transaction is valued into it (one rate per pair for the whole request) before the comparison. Without it the bounds keep their per-transaction meaning. A transaction whose currency cannot be priced is excluded and reported in `data.amount_filter.unpriced_currencies` rather than silently dropped.
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/AccountIdQuery'
+      - $ref: '#/components/parameters/WalletIdQuery'
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/PageSize'
+      - name: kind
+        in: query
+        schema:
+          $ref: '#/components/schemas/TransactionKind'
+      - name: status
+        in: query
+        description: Repeatable filter; multiple values are OR-ed (e.g. `status=pending&status=confirmed`)
+        schema:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionStatus'
+        style: form
+        explode: true
+      - name: sort_order
+        in: query
+        schema:
+          $ref: '#/components/schemas/SortOrder'
+          default: desc
+      - $ref: '#/components/parameters/TransactionDateFrom'
+      - $ref: '#/components/parameters/TransactionDateTo'
+      - $ref: '#/components/parameters/PresentationCurrency'
+      - $ref: '#/components/parameters/TransactionAmountMinMinor'
+      - $ref: '#/components/parameters/TransactionAmountMaxMinor'
+      - $ref: '#/components/parameters/TransactionSearch'
+      - $ref: '#/components/parameters/OrganizationIdHeader'
+      responses:
+        '200':
+          description: Transaction list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeTransactionList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/app/transactions/{transaction_id}:
+    get:
+      tags:
+      - transactions
+      operationId: getTransaction
+      summary: Get transaction detail
+      description: |
+        One transaction visible to the organisation the caller acts in. A transaction of another organisation is a 404, never a 403: existence is not leaked across tenants. `source_wallet_name` / `destination_wallet_name` are resolved from the wallet registry when the id is known, otherwise null.
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/TransactionId'
+      - $ref: '#/components/parameters/OrganizationIdHeader'
+      responses:
+        '200':
+          description: Transaction detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeTransaction'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  parameters:
+    AccountIdQuery:
+      name: account_id
+      in: query
+      required: false
+      schema:
+        type: string
+        format: uuid
+      description: Filter transactions to all wallets under this account
+    WalletIdQuery:
+      name: wallet_id
+      in: query
+      required: false
+      schema:
+        $ref: '#/components/schemas/CoreWalletId'
+      description: Filter transactions to a single wallet
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: page_size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    TransactionDateFrom:
+      name: date_from
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+        example: '2026-08-01T00:00:00+03:00'
+      description: Inclusive lower bound on `created_at` (RFC 3339 with offset; else 422). Must be ≤ `date_to` when
+        both set.
+    TransactionDateTo:
+      name: date_to
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+        example: '2026-08-07T23:59:59+03:00'
+      description: Inclusive upper bound on `created_at` (RFC 3339 with offset; else 422). Must be ≥ `date_from`
+        when both set.
+    PresentationCurrency:
+      name: presentation_currency
+      in: query
+      required: false
+      schema:
+        $ref: '#/components/schemas/CurrencyTicker'
+      description: |
+        Currency the client wants amounts expressed in - the cabinet's currency selector. Presentation only: balances are held and settled in the wallet currency, and nothing is stored converted. Omit it to get amounts in the account's own currency, which is what a client without a selector does.
+
+        Matched case-insensitively. A currency the exchange-rate service cannot price is never an error: the response reports what it could not convert rather than failing, because the underlying figures are real and already read. Each operation says where it reports that.
+    TransactionAmountMinMinor:
+      name: amount_min_minor
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+      description: |
+        Inclusive lower bound on `amount_minor`, read in `presentation_currency` when one is supplied and in each transaction's own currency otherwise. Must be ≤ `amount_max_minor` when both are set (else 422).
+    TransactionAmountMaxMinor:
+      name: amount_max_minor
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+      description: |
+        Inclusive upper bound on `amount_minor`, read in `presentation_currency` when one is supplied and in each transaction's own currency otherwise. Must be ≥ `amount_min_minor` when both are set (else 422).
+    TransactionSearch:
+      name: search
+      in: query
+      required: false
+      schema:
+        type: string
+      description: |
+        Narrow substring match against `transaction_id`, `reference`, and `wallet_id` only (not counterparty names or free-text memo).
+    OrganizationIdHeader:
+      name: X-Organization-Id
+      in: header
+      required: false
+      schema:
+        type: string
+        format: uuid
+      description: |
+        The organisation the caller acts in for this request. A user may be an ACTIVE member of several organisations; the client names one per request so two browser tabs never leak into each other. The value must be an organisation where the bearer subject has an ACTIVE membership, otherwise `403 organization_context_forbidden`. Without the header the caller's first ACTIVE membership is used. A value that is not a UUID is `400 validation_error`.
+    TransactionId:
+      name: transaction_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/CoreTransactionId'
+  schemas:
+    CoreWalletId:
+      type: string
+      pattern: ^wlt_[0-9a-f]{32}$
+      description: |
+        Wallet identifier, minted by the ledger and exposed unchanged.
+    TransactionKind:
+      type: string
+      enum:
+      - deposit
+      - transfer
+      - withdrawal
+      - receive
+    TransactionStatus:
+      type: string
+      enum:
+      - initiated
+      - pending
+      - confirmed
+      - failed
+    SortOrder:
+      type: string
+      enum:
+      - asc
+      - desc
+    CurrencyTicker:
+      type: string
+      pattern: ^[A-Za-z0-9]{2,10}$
+      example: USD
+      description: |
+        Fiat ISO code or crypto asset ticker. Deliberately not an enum: the set of priced currencies is exchange-rate service configuration and grows without a contract version, so a client that pinned the list would reject a currency the server already supports. Responses always use uppercase.
+    EnvelopeTransactionList:
+      allOf:
+      - $ref: '#/components/schemas/Envelope'
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            type: object
+            required:
+            - items
+            - page
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transaction'
+              page:
+                $ref: '#/components/schemas/PageMeta'
+              amount_filter:
+                allOf:
+                - $ref: '#/components/schemas/TransactionAmountFilter'
+                nullable: true
+                description: |
+                  How the amount bounds were interpreted. Null when `presentation_currency` was not supplied, in which case the bounds kept their per-transaction meaning and nothing was valued.
+    Envelope:
+      type: object
+      required:
+      - correlation_id
+      description: |
+        Base success envelope shell. Do not reference directly in operation responses; use Envelope{Payload} schemas with typed `data`.
+      properties:
+        correlation_id:
+          type: string
+          format: uuid
+    Transaction:
+      type: object
+      required:
+      - transaction_id
+      - kind
+      - status
+      - amount_minor
+      - asset
+      - direction
+      - recipient_context
+      properties:
+        transaction_id:
+          $ref: '#/components/schemas/CoreTransactionId'
+        account_id:
+          type: string
+          format: uuid
+          nullable: true
+        wallet_id:
+          allOf:
+          - $ref: '#/components/schemas/CoreWalletId'
+          nullable: true
+        kind:
+          $ref: '#/components/schemas/TransactionKind'
+        direction:
+          $ref: '#/components/schemas/TransactionDirection'
+        status:
+          $ref: '#/components/schemas/TransactionStatus'
+        amount_minor:
+          type: integer
+        asset:
+          type: string
+          enum:
+          - USDC
+        counterparty_name:
+          type: string
+          nullable: true
+          description: |
+            Compatibility display field. New clients should use `counterparty.name`.
+        counterparty:
+          nullable: true
+          allOf:
+          - $ref: '#/components/schemas/TransactionCounterparty'
+        recipient_context:
+          $ref: '#/components/schemas/TransactionRecipientContext'
+        reference:
+          type: string
+          nullable: true
+        fee_amount_minor:
+          type: integer
+          nullable: true
+        source_wallet_id:
+          allOf:
+          - $ref: '#/components/schemas/CoreWalletId'
+          nullable: true
+        destination_wallet_id:
+          allOf:
+          - $ref: '#/components/schemas/CoreWalletId'
+          nullable: true
+        source_wallet_name:
+          type: string
+          nullable: true
+          description: |
+            Human-readable display name of `source_wallet_id` from the local wallet registry. Populated on transaction detail; null when the id is absent or unknown. Not `source_account_name`.
+        destination_wallet_name:
+          type: string
+          nullable: true
+          description: |
+            Human-readable display name of `destination_wallet_id` from the local wallet registry. Populated on transaction detail; null when the id is absent or unknown. Not `destination_account_name`.
+        transfer_id:
+          allOf:
+          - $ref: '#/components/schemas/CoreTransferId'
+          nullable: true
+          description: Transfer aggregate that produced this ledger leg
+        withdrawal_id:
+          allOf:
+          - $ref: '#/components/schemas/CoreWithdrawalId'
+          nullable: true
+          description: Withdrawal aggregate that produced this debit leg
+        failure_code:
+          type: string
+          pattern: ^[a-z0-9_]+$
+          nullable: true
+          description: Machine-readable terminal failure reason from the ledger
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+    CoreTransactionId:
+      type: string
+      pattern: ^txn_[0-9a-f]{32}$
+      description: |
+        Transaction identifier, minted by the ledger and exposed unchanged.
+    TransactionDirection:
+      type: string
+      enum:
+      - in
+      - out
+    TransactionCounterparty:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      - bank_name
+      - bank_routing_number
+      - account_last_four
+      - rail
+      - description
+      description: |
+        Provider-neutral, display-safe counterparty details. Present only when at least one counterparty field is known. No full account number is exposed.
+      properties:
+        name:
+          type: string
+          nullable: true
+        bank_name:
+          type: string
+          nullable: true
+        bank_routing_number:
+          type: string
+          nullable: true
+        account_last_four:
+          type: string
+          nullable: true
+          minLength: 4
+          maxLength: 4
+          description: Last four alphanumeric characters of a masked provider value
+        rail:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+    TransactionRecipientContext:
+      type: object
+      additionalProperties: false
+      required:
+      - can_save
+      - recipient_id
+      description: |
+        Server-owned state of the "save counterparty as recipient" action. Read-only and out of scope for this assignment; clients that do not offer the action ignore it.
+      example:
+        can_save: true
+        recipient_id: null
+      properties:
+        can_save:
+          type: boolean
+          description: True when the counterparty of a confirmed incoming transaction can be saved as a recipient.
+        recipient_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Existing org-scoped recipient for this counterparty, if any
+    CoreTransferId:
+      type: string
+      pattern: ^btr_[0-9a-f]{32}$
+      description: |
+        Transfer identifier, minted by the ledger and exposed unchanged.
+    CoreWithdrawalId:
+      type: string
+      pattern: ^bwd_[0-9a-f]{32}$
+      description: Withdrawal identifier, minted by the ledger and exposed unchanged.
+    PageMeta:
+      type: object
+      required:
+      - page
+      - page_size
+      - total
+      - has_more
+      properties:
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total:
+          type: integer
+        has_more:
+          type: boolean
+    TransactionAmountFilter:
+      type: object
+      required:
+      - currency
+      - stale
+      - unpriced_currencies
+      description: |
+        What the amount bounds were compared against. Present only when the client asked for a presentation currency; the bounds are otherwise per-transaction and nothing is valued.
+      properties:
+        currency:
+          allOf:
+          - $ref: '#/components/schemas/CurrencyTicker'
+          description: |
+            Currency the bounds were read in - the requested `presentation_currency`. Unlike the account total, this never falls back to another currency: a range answered in a currency the client did not ask for would return a set nobody requested.
+        as_of:
+          type: string
+          format: date-time
+          nullable: true
+          description: |
+            Oldest `as_of` among the rates used, UTC - the comparison is no fresher than its weakest rate. Null when nothing needed a rate, which is the case when every transaction was already in `currency`.
+        stale:
+          type: boolean
+          description: |
+            True when any rate used was stale, so the bounds were applied at a price the market may have moved past.
+        unpriced_currencies:
+          type: array
+          description: |
+            Currencies excluded from the result because no rate was available to value them against `currency`. Empty when everything could be priced. A page that came back empty only because of this says so here instead of looking like an ordinary empty result.
+          items:
+            $ref: '#/components/schemas/CurrencyTicker'
+    ErrorResponse:
+      type: object
+      required:
+      - type
+      - correlation_id
+      - error
+      properties:
+        type:
+          type: string
+        correlation_id:
+          type: string
+          format: uuid
+        error:
+          type: object
+          required:
+          - code
+          - message
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            data:
+              type: object
+              additionalProperties: true
+    ValidationErrorResponse:
+      type: object
+      required:
+      - type
+      - correlation_id
+      - error
+      description: 'The 422 body produced by the services'' validation handler. It differs
+        from `ErrorResponse` in one place that matters to a generated client: `error` is a map from field name to
+        a list of issues, not a single issue object. The reserved key `non_field_errors` carries form-level problems
+        that belong to no single field.'
+      properties:
+        type:
+          type: string
+          enum:
+          - ValidationError
+        correlation_id:
+          type: string
+          format: uuid
+        error:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/ValidationIssue'
+    ValidationIssue:
+      type: object
+      required:
+      - code
+      - message
+      properties:
+        code:
+          type: string
+          description: Stable machine-readable identifier, snake_case.
+        message:
+          type: string
+          description: Human-readable English string.
+        data:
+          type: object
+          additionalProperties: true
+          description: Optional context; omitted or `{}` when empty.
+    EnvelopeTransaction:
+      allOf:
+      - $ref: '#/components/schemas/Envelope'
+      - type: object
+        required:
+        - data
+        properties:
+          data:
+            $ref: '#/components/schemas/Transaction'
+  responses:
+    Unauthorized:
+      description: Missing or invalid credentials
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: The bearer subject has no ACTIVE membership in the organisation named by X-Organization-Id
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationError:
+      description: 'Field validation failed. The body is the validation map, not the single-object domain
+        error: `error` is keyed by field name and each value is an array of issues.'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

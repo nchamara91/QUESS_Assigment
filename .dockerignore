@@ -1,0 +1,12 @@
+.git
+.gitignore
+.env
+**/__pycache__
+**/*.pyc
+**/.venv
+**/.mypy_cache
+**/.ruff_cache
+**/.pytest_cache
+backend/.venv
+web/node_modules
+web/dist

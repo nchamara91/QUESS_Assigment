@@ -1,0 +1,66 @@
+# Local development stack: PostgreSQL, one-shot migrations, the categories
+# service on :8081 and the reference mock on :8080.
+#
+#   cp .env.example .env
+#   docker compose up -d --build
+#   CATEGORIES_URL=http://localhost:8081 node acceptance/run.mjs
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-categories}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-categories}"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  migrate:
+    build:
+      context: ./backend
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-categories}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  categories:
+    build:
+      context: ./backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-categories}
+      TRANSACTIONS_API_URL: http://mock:8080
+      AUTH_HS256_SECRET: ${AUTH_HS256_SECRET:-assignment-dev-secret}
+      PORT: "8081"
+    command:
+      ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8081", "--no-access-log"]
+    ports:
+      - "8081:8081"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      mock:
+        condition: service_started
+
+  mock:
+    image: node:20-alpine
+    working_dir: /repo
+    volumes:
+      - ./:/repo:ro
+    command: ["node", "mock/server.mjs"]
+    environment:
+      MOCK_PORT: "8080"
+    ports:
+      - "8080:8080"
+
+volumes:
+  db-data:
