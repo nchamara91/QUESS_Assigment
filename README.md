@@ -32,48 +32,44 @@ the writing about it under `docs/`.
 
 ## Run it
 
-Requirements: Docker (with Compose), Node 20+, pnpm, Python 3.12+ with `uv`.
+Everything runs from the repository root. You need **Docker Desktop** running
+and **Node 20+** (the mock, the token minter and the acceptance script are plain
+Node). `pnpm` (via `corepack`) and `uv` are only needed for the optional local
+development and check commands further down.
 
 ```bash
+cp .env.example .env
+node mock/token.mjs owner-a          # paste the printed token into VITE_ACCESS_TOKEN in .env
 docker compose up -d --build
-node acceptance/run.mjs            # 66/66 with CATEGORIES_URL defaulting to http://localhost:8080
 ```
 
-To run the acceptance suite against *this* backend instead of the mock's
-reference implementation:
+Then open **http://localhost:5173**.
 
-```bash
-docker compose up -d --build
-CATEGORIES_URL=http://localhost:8081 node acceptance/run.mjs   # 66/66
-```
+| Service | URL |
+|---------|-----|
+| Web client (nginx) | http://localhost:5173 |
+| Categories API (this service) | http://localhost:8081 |
+| Mock / transactions API | http://localhost:8080 |
 
-`docker compose up` also builds the web client and serves it through nginx on
-**http://localhost:5173**. Put a token in the root `.env`
-(`VITE_ACCESS_TOKEN=$(node mock/token.mjs owner-a)`) and restart the web service;
-the browser-facing API URLs are injected at container start, so they can change
-without a rebuild:
+`docker compose down` stops everything and keeps the database; add `-v` to wipe
+it. The web client's API URLs are written into `config.js` at container start, so
+switching it to the mock's own categories is a restart, not a rebuild:
 
 ```bash
 VITE_CATEGORIES_API_URL=http://localhost:8080 docker compose up -d web
 ```
 
-Or run the client locally against the same APIs:
+### Verify with the acceptance suite
 
 ```bash
-pnpm --dir implementation/web install
-pnpm --dir implementation/web generate
-pnpm --dir implementation/web dev
-```
-
-`implementation/web/.env` controls which APIs the client talks to:
-
-```
-VITE_TRANSACTIONS_API_URL=http://localhost:8080
-VITE_CATEGORIES_API_URL=http://localhost:8081   # or :8080 for the mock-only path
-VITE_ACCESS_TOKEN=<token from `node mock/token.mjs owner-a`>
+node acceptance/run.mjs                                        # 66/66 against the mock
+CATEGORIES_URL=http://localhost:8081 node acceptance/run.mjs   # 66/66 against this backend
 ```
 
 ## Backend
+
+The service runs in Docker with the rest of the stack. To run its checks locally
+(needs `uv`):
 
 ```bash
 cd implementation/backend
@@ -95,14 +91,22 @@ Environment (`.env.example` at the repo root):
 
 ## Web
 
+The client is served by the container by default. To run it locally with the
+Vite dev server instead (needs `pnpm` via `corepack enable`):
+
 ```bash
 cd implementation/web
-pnpm install
-pnpm generate        # regenerates src/api/generated from contracts/
-pnpm typecheck
-pnpm lint
-pnpm test
+corepack pnpm install
+cp .env.example .env        # only for the dev server; set the URLs and the token
+corepack pnpm generate      # optional: regenerates src/api/generated from contracts/
+corepack pnpm typecheck
+corepack pnpm lint
+corepack pnpm test
+corepack pnpm dev
 ```
+
+The root `.env` drives the container; `implementation/web/.env` is read only by
+the Vite dev server.
 
 ## Status
 
