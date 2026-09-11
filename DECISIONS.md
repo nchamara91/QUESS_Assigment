@@ -72,6 +72,13 @@ alternative, and why.
 
 ## Process
 
+- **The implementation lives under `implementation/`; the assessment package
+  stays at the repository root.** *Alternative:* move `contracts/`, `mock/`,
+  `acceptance/` and `fixtures/` into a `docs/`/`assignment/` folder too. We did
+  not, because `acceptance/run.mjs` imports `../mock/token.mjs` and the brief
+  specifies `node acceptance/run.mjs` verbatim; moving the package would break
+  that command. Separating the code keeps the two concerns visually distinct
+  without changing anything the reviewer runs.
 - **The brief's README was preserved as `ASSIGNMENT.md`** so the repository
   could carry its own delivery README without editing the source material.
   The contracts, fixtures, mock and acceptance run are untouched.

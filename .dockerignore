@@ -7,6 +7,6 @@
 **/.mypy_cache
 **/.ruff_cache
 **/.pytest_cache
-backend/.venv
-web/node_modules
-web/dist
+implementation/backend/.venv
+implementation/web/node_modules
+implementation/web/dist

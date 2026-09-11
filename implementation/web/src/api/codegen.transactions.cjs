@@ -3,7 +3,7 @@
 // @ts-check
 /** @type {import('@rtk-query/codegen-openapi').ConfigFile} */
 const config = {
-  schemaFile: '../../../contracts/transactions.public.openapi.yaml',
+  schemaFile: '../../../../contracts/transactions.public.openapi.yaml',
   apiFile: './emptyTransactionsApi.ts',
   apiImport: 'emptyTransactionsApi',
   outputFile: './generated/transactionsApi.ts',

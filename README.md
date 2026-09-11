@@ -10,13 +10,19 @@ The contracts under `contracts/` are the source of truth and are never edited.
 ## Architecture
 
 ```
-backend/    FastAPI + SQLAlchemy 2 (async) + Alembic + PostgreSQL 16
-web/        React 19 + Vite + RTK Query, types generated from the contracts
+implementation/
+  backend/  FastAPI + SQLAlchemy 2 (async) + Alembic + PostgreSQL 16
+  web/      React 19 + Vite + RTK Query, types generated from the contracts
 contracts/  the two OpenAPI documents (unmodified)
 mock/       the reference mock / transactions upstream shipped with the brief
 acceptance/ 66 black-box checks of the categories contract
 fixtures/   seeded feed and token fixtures, used by tests only, never at runtime
 ```
+
+The assessment package (`contracts/`, `mock/`, `acceptance/`, `fixtures/`,
+`ASSIGNMENT.md`) stays at the repository root, unmodified, so the commands the
+brief specifies keep working. Everything written for the feature lives under
+`implementation/`.
 
 ## Run it
 
@@ -38,12 +44,12 @@ CATEGORIES_URL=http://localhost:8081 node acceptance/run.mjs   # 66/66
 Start the web client against the mock alone, or the mock plus this backend:
 
 ```bash
-pnpm --dir web install
-pnpm --dir web generate
-pnpm --dir web dev
+pnpm --dir implementation/web install
+pnpm --dir implementation/web generate
+pnpm --dir implementation/web dev
 ```
 
-`web/.env` controls which APIs the client talks to:
+`implementation/web/.env` controls which APIs the client talks to:
 
 ```
 VITE_TRANSACTIONS_API_URL=http://localhost:8080
@@ -54,7 +60,7 @@ VITE_ACCESS_TOKEN=<token from `node mock/token.mjs owner-a`>
 ## Backend
 
 ```bash
-cd backend
+cd implementation/backend
 uv sync
 uv run ruff check .
 uv run ruff format --check .
@@ -74,7 +80,7 @@ Environment (`.env.example` at the repo root):
 ## Web
 
 ```bash
-cd web
+cd implementation/web
 pnpm install
 pnpm generate        # regenerates src/api/generated from ../contracts
 pnpm typecheck

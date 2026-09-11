@@ -24,7 +24,7 @@ services:
 
   migrate:
     build:
-      context: ./backend
+      context: ./implementation/backend
     command: ["alembic", "upgrade", "head"]
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-categories}
@@ -35,7 +35,7 @@ services:
 
   categories:
     build:
-      context: ./backend
+      context: ./implementation/backend
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-categories}
       TRANSACTIONS_API_URL: http://mock:8080

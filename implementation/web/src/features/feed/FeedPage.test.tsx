@@ -6,7 +6,7 @@ import { Provider } from 'react-redux'
 import { axe } from 'vitest-axe'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import categoriesFixture from '../../../../fixtures/categories.org-a.system.json'
+import categoriesFixture from '../../../../../fixtures/categories.org-a.system.json'
 import { createStore } from '../../api/store'
 import { CATEGORIES_API, CORRELATION_ID, assignmentRequests, server } from '../../test/server'
 import { FeedPage } from './FeedPage'

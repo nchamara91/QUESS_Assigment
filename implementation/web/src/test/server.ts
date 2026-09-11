@@ -1,8 +1,8 @@
 import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 
-import categoriesFixture from '../../../fixtures/categories.org-a.system.json'
-import transactionsFixture from '../../../fixtures/transactions.org-a.json'
+import categoriesFixture from '../../../../fixtures/categories.org-a.system.json'
+import transactionsFixture from '../../../../fixtures/transactions.org-a.json'
 
 export const CORRELATION_ID = '00000000-0000-4000-8000-000000000000'
 export const TRANSACTIONS_API = 'http://localhost:8080'

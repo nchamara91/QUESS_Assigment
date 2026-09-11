@@ -11,10 +11,10 @@ acceptance: ## run the 66 contract checks against the local backend
 	CATEGORIES_URL=http://localhost:8081 node acceptance/run.mjs
 
 backend-check:
-	cd backend && uv run ruff check . && uv run ruff format --check . && uv run mypy app && uv run pytest
+	cd implementation/backend && uv run ruff check . && uv run ruff format --check . && uv run mypy app && uv run pytest
 
 web-check:
-	cd web && pnpm generate && git diff --exit-code src/api/generated && pnpm typecheck && pnpm lint && pnpm test
+	cd implementation/web && pnpm generate && git diff --exit-code src/api/generated && pnpm typecheck && pnpm lint && pnpm test
 
-token: ## print a demo bearer token for web/.env
+token: ## print a demo bearer token for implementation/web/.env
 	node mock/token.mjs owner-a
