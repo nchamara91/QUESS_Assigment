@@ -79,10 +79,78 @@ alternative, and why.
   specifies `node acceptance/run.mjs` verbatim; moving the package would break
   that command. Separating the code keeps the two concerns visually distinct
   without changing anything the reviewer runs.
-- **The brief's README was preserved as `ASSIGNMENT.md`** so the repository
-  could carry its own delivery README without editing the source material.
-  The contracts, fixtures, mock and acceptance run are untouched.
+- **The brief was preserved as `docs/ASSIGNMENT.md`** so the repository could
+  carry its own delivery README without editing the source material. The
+  contracts, fixtures, mock and acceptance run are untouched.
 
-## Open questions to the assessors
+## Assumptions
 
-- _none yet._
+Where the contract is silent, these are the calls we made. All are exercised by
+the acceptance run or by a test unless marked otherwise.
+
+**Backend**
+
+- System category ids are UUID4s minted per organisation at first seed; only
+  `code` is treated as the cross-organisation identity. The contract requires
+  stability per organisation, not a global id.
+- The 50-category limit counts custom categories only; the nine system ones are
+  always in addition.
+- `assigned_by` stores the bearer `sub` verbatim. The contract caps the field at
+  128 characters, so we assume subjects fit; a longer one would currently be
+  rejected by the database.
+- The token issuer is **not** verified. We check the HS256 signature, `exp`,
+  `sub` and a non-empty `orgs`; the environment the brief names has no issuer
+  setting. *(Not covered by a test.)*
+- Every upstream non-2xx that is not a 404 (including 401/403 and other 4xx) maps
+  to `transactions_unavailable`. The contract names only 404, timeout and 5xx.
+- Category existence is checked before the upstream visibility read, so when both
+  the category and the transaction are invalid the category 404 is returned. The
+  contract fixes neither order.
+- An unknown body field is reported under its own key with issue code
+  `invalid_format`. The contract lists the allowed issue codes but does not say
+  which one an extra field carries.
+- `updated_at` uses the database clock (`onupdate=now()`); custom categories with
+  equal folded names fall back to `created_at`. *(Name ties are not covered by a
+  test.)*
+
+**Web**
+
+- The API URLs default to `localhost:8080`/`:8081`, so the app runs with an empty
+  `.env`; the `VITE_*` variables override.
+- A failure shows one sentence and reverts the selector; the server's assignment
+  is authoritative once the request settles.
+- Only the loaded page's ids are looked up, so the batch is never larger than the
+  100 the contract allows (a page is 20).
+- A colour token outside the eight renders the neutral fallback chip, never the
+  raw token.
+- The generated API files are read-only; the array-parameter fix lives in
+  `implementation/web/src/api/baseQuery.ts`, not in generated output.
+
+## Questions for the assessors
+
+We did not block on these: each has the decision we took in its place, as the
+brief allows.
+
+1. **`assigned_by` length.** If a subject's `sub` exceeds 128 characters, should
+   the service truncate, reject, or widen the column? We let the database reject
+   it today.
+2. **Upstream 403/other 4xx.** Is `transactions_unavailable` the intended mapping,
+   or should a non-404 client error pass through? We map everything except 404
+   to `503`.
+3. **Token issuer.** Should `iss` be verified? No issuer is configured by the
+   environment the brief specifies, so we skip it.
+4. **Extra request fields.** Which issue code should an unknown body field carry?
+   We use `invalid_format`.
+
+## Contract observations
+
+Reported, not changed; the behaviour we implemented is next to each.
+
+1. **Malformed `X-Organization-Id` returns `400 validation_error`** (stated in
+   the parameter description) but no operation declares a `400` response, so the
+   generated client has no type for it. We implement the `400`; the generated
+   types simply do not model it.
+2. **Duplicate component names across the two contracts** (`Envelope`,
+   `ErrorResponse`, `ValidationErrorResponse`, `CoreTransactionId`). Codegen
+   emits them into separate modules, so there is no runtime collision; a consumer
+   that imports both must alias them. We did not touch the contracts.
