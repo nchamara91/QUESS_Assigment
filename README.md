@@ -10,7 +10,7 @@ The contracts under `contracts/` are the source of truth and are never edited.
 
 For a narrative of what was built and how it maps to the contract, see
 [`docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md); for the decisions, assumptions
-and open questions, see [`docs/DECISIONS.md`](docs/DECISIONS.md).
+and open questions, see [`DECISIONS.md`](DECISIONS.md).
 
 ## Architecture
 
@@ -18,7 +18,7 @@ and open questions, see [`docs/DECISIONS.md`](docs/DECISIONS.md).
 implementation/
   backend/  FastAPI + SQLAlchemy 2 (async) + Alembic + PostgreSQL 16
   web/      React 19 + Vite + RTK Query, types generated from the contracts
-docs/       the brief, the decisions log and the implementation notes
+docs/       the brief (ASSIGNMENT.md) and the local notes
 contracts/  the two OpenAPI documents (unmodified)
 mock/       the reference mock / transactions upstream shipped with the brief
 acceptance/ 66 black-box checks of the categories contract
@@ -27,8 +27,8 @@ fixtures/   seeded feed and token fixtures, used by tests only, never at runtime
 
 The assessment package (`contracts/`, `mock/`, `acceptance/`, `fixtures/`) stays
 at the repository root, unmodified, so the commands the brief specifies keep
-working. Everything written for the feature lives under `implementation/`, and
-the writing about it under `docs/`.
+working. Everything written for the feature lives under `implementation/`; the
+brief is preserved under `docs/`.
 
 ## Run it
 
@@ -116,7 +116,7 @@ database and on a re-run. The generated API layer is committed and regenerates
 with no diff. The web client loads the feed, shows category chips, sets and
 clears categories optimistically with rollback, and manages custom categories;
 `tsc`, ESLint, Vitest and the axe check pass. See
-[`docs/DECISIONS.md`](docs/DECISIONS.md) for the choices taken and
+[`DECISIONS.md`](DECISIONS.md) for the choices taken and
 [`docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md) for how it all fits together.
 
 Known gaps before this is production-ready, tracked here rather than hidden:
