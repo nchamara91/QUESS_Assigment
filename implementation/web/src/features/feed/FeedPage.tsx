@@ -75,7 +75,7 @@ export function FeedPage() {
         </div>
       )}
 
-      {feed.isLoading && <p role="status">Loading transactions…</p>}
+      {feed.isLoading && <p role="status">Loading transactions</p>}
 
       {feed.error !== undefined && (
         <div className="error-block">

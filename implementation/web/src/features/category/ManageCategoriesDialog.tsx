@@ -128,7 +128,7 @@ export function ManageCategoriesDialog({ open, onClose }: ManageCategoriesDialog
           </button>
         </div>
 
-        {isLoading && <p role="status">Loading categories…</p>}
+        {isLoading && <p role="status">Loading categories</p>}
         {error !== undefined && (
           <p role="alert" className="error">
             {errorMessage(error)}
