@@ -8,9 +8,8 @@ The original assignment brief, unchanged, is kept at
 [`docs/ASSIGNMENT.md`](docs/ASSIGNMENT.md).
 The contracts under `contracts/` are the source of truth and are never edited.
 
-For a narrative of what was built and how it maps to the contract, see
-[`docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md); for the decisions, assumptions
-and open questions, see [`DECISIONS.md`](DECISIONS.md).
+For the choices taken, the assumptions and the open questions, see
+[`DECISIONS.md`](DECISIONS.md).
 
 ## Architecture
 
@@ -121,14 +120,12 @@ database and on a re-run. The generated API layer is committed and regenerates
 with no diff. The web client loads the feed, shows category chips, sets and
 clears categories optimistically with rollback, and manages custom categories;
 `tsc`, ESLint, Vitest and the axe check pass. See
-[`DECISIONS.md`](DECISIONS.md) for the choices taken and
-[`docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md) for how it all fits together.
+[`DECISIONS.md`](DECISIONS.md) for the choices taken.
 
 Known gaps before this is production-ready, tracked here rather than hidden:
 
 - the page is verified against both API targets at the HTTP level (runtime
   `config.js` injection and CORS); there is no automated browser end-to-end run;
 - the mock's `X-Mock-Delay-Ms` / `X-Mock-Fail-Status` failure injection is a
-  manual walk-through (see `docs/IMPLEMENTATION.md`); the failure paths
-  themselves are covered by the MSW component tests and the fake-upstream
-  backend tests.
+  manual walk-through; the failure paths themselves are covered by the MSW
+  component tests and the fake-upstream backend tests.
