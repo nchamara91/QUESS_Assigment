@@ -41,7 +41,7 @@ type ManageCategoriesDialogProps = {
 
 /** System categories are read-only; custom ones can be renamed, recoloured and deleted. */
 export function ManageCategoriesDialog({ open, onClose }: ManageCategoriesDialogProps) {
-  const { data, isLoading, error, refetch } = useListTransactionCategoriesQuery({}, { skip: !open })
+  const { data, isLoading, isFetching, error, refetch } = useListTransactionCategoriesQuery({}, { skip: !open })
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
   const restoreFocusRef = useRef<HTMLElement | null>(null)
@@ -106,6 +106,11 @@ export function ManageCategoriesDialog({ open, onClose }: ManageCategoriesDialog
   }
 
   const categories = data?.data.items ?? []
+  const systemCategories = categories.filter((category) => category.kind === 'system')
+  const customCategories = categories.filter((category) => category.kind === 'custom')
+  const refresh = (): void => {
+    void refetch()
+  }
 
   return (
     <div className="dialog-backdrop">
@@ -117,44 +122,91 @@ export function ManageCategoriesDialog({ open, onClose }: ManageCategoriesDialog
         ref={dialogRef}
       >
         <div className="dialog__header">
-          <h2 id="manage-categories-title">Manage categories</h2>
-          <button
-            type="button"
-            ref={closeButtonRef}
-            onClick={onClose}
-            aria-label="Close categories dialog"
-          >
-            Close
-          </button>
+          <div className="dialog__heading">
+            <span className="dialog__eyebrow">Workspace settings</span>
+            <h2 id="manage-categories-title">Manage categories</h2>
+            <p className="dialog__description">
+              Organise your feed with labels your whole team can understand.
+            </p>
+          </div>
+          <div className="dialog__header-actions">
+            {isFetching && <span className="dialog__refresh" role="status">Refreshing</span>}
+            <button
+              type="button"
+              ref={closeButtonRef}
+              onClick={onClose}
+              aria-label="Close categories dialog"
+            >
+              <span aria-hidden="true">×</span>
+            </button>
+          </div>
         </div>
 
-        {isLoading && <p role="status">Loading categories</p>}
-        {error !== undefined && (
-          <p role="alert" className="error">
-            {errorMessage(error)}
-          </p>
-        )}
-
-        <ul className="category-list">
-          {categories.map((category) =>
-            category.kind === 'system' ? (
-              <li key={category.category_id} className="category-row">
-                <span>{category.name}</span>
-                <span className="muted">System</span>
-              </li>
-            ) : (
-              <CustomCategoryRow key={category.category_id} category={category} />
-            ),
+        <div className="dialog__body">
+          {isLoading && <p role="status">Loading categories</p>}
+          {error !== undefined && (
+            <p role="alert" className="error">
+              {errorMessage(error)}
+            </p>
           )}
-        </ul>
 
-        <CreateCategoryForm onCreated={() => void refetch()} />
+          <section className="category-section" aria-labelledby="system-categories-heading">
+            <div className="category-section__heading">
+              <div>
+                <h3 id="system-categories-heading">System categories</h3>
+                <p>Built-in labels that keep your reporting consistent.</p>
+              </div>
+              <span className="count-badge">{systemCategories.length} fixed</span>
+            </div>
+            <ul className="category-list">
+              {systemCategories.map((category) => (
+                <li key={category.category_id} className="category-row category-row--system">
+                  <span className="category-row__name">{category.name}</span>
+                  <span className="muted">Always available</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="category-section" aria-labelledby="custom-categories-heading">
+            <div className="category-section__heading">
+              <div>
+                <h3 id="custom-categories-heading">Custom categories</h3>
+                <p>Tailor the feed to the way your organisation works.</p>
+              </div>
+              <span className="count-badge">{customCategories.length} / 50</span>
+            </div>
+            {customCategories.length > 0 ? (
+              <ul className="category-list">
+                {customCategories.map((category) => (
+                  <CustomCategoryRow key={category.category_id} category={category} onChanged={refresh} />
+                ))}
+              </ul>
+            ) : (
+              <div className="category-empty">
+                <span className="category-empty__icon" aria-hidden="true">＋</span>
+                <div>
+                  <strong>No custom categories yet</strong>
+                  <p>Create one below to make your feed feel like yours.</p>
+                </div>
+              </div>
+            )}
+          </section>
+
+          <CreateCategoryForm onCreated={refresh} />
+        </div>
       </div>
     </div>
   )
 }
 
-function CustomCategoryRow({ category }: { category: TransactionCategory }) {
+function CustomCategoryRow({
+  category,
+  onChanged,
+}: {
+  category: TransactionCategory
+  onChanged: () => void
+}) {
   const [name, setName] = useState(category.name)
   const [color, setColor] = useState<TransactionCategoryColor>(category.color)
   const [message, setMessage] = useState<string | null>(null)
@@ -168,6 +220,7 @@ function CustomCategoryRow({ category }: { category: TransactionCategory }) {
         categoryId: category.category_id,
         transactionCategoryUpdate: { name, color },
       }).unwrap()
+      onChanged()
     } catch (err) {
       const field = validationMessages(err as ApiError).name
       setMessage(field ?? errorMessage(err as ApiError))
@@ -178,6 +231,7 @@ function CustomCategoryRow({ category }: { category: TransactionCategory }) {
     setMessage(null)
     try {
       await deleteCategory({ categoryId: category.category_id }).unwrap()
+      onChanged()
     } catch (err) {
       setMessage(errorMessage(err as ApiError))
     }

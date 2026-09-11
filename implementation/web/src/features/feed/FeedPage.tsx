@@ -58,7 +58,11 @@ export function FeedPage() {
   return (
     <main className="page">
       <header className="page__header">
-        <h1>Transactions</h1>
+        <div className="page__title-group">
+          <span className="page__eyebrow">Cash management</span>
+          <h1>Transactions</h1>
+          <p className="page__subtitle">Review activity and keep every payment in context.</p>
+        </div>
         <button type="button" onClick={() => setManageOpen(true)}>
           Manage categories
         </button>

@@ -618,19 +618,22 @@ p[role='status']::after {
   inset: 0;
   z-index: 10;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 1rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: clamp(0.75rem, 5vh, 3rem) 1rem;
   background: rgb(9 14 26 / 55%);
   backdrop-filter: blur(3px);
   animation: fade-in 0.18s ease-out;
 }
 
 .dialog {
-  width: min(40rem, 100%);
-  max-height: min(42rem, 90vh);
-  overflow-y: auto;
-  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  width: min(44rem, 100%);
+  max-height: min(48rem, calc(100dvh - 2rem));
+  overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -653,10 +656,151 @@ p[role='status']::after {
 
 .dialog__header {
   display: flex;
-  align-items: center;
+  flex-shrink: 0;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1rem;
+  padding: 1.5rem 1.5rem 1.25rem;
+  background: linear-gradient(135deg, var(--surface), var(--accent-soft));
+  border-bottom: 1px solid var(--border);
+}
+
+.dialog__heading {
+  min-width: 0;
+}
+
+.dialog__eyebrow,
+.page__eyebrow {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--accent);
+  font-size: 0.6875rem;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.dialog__description,
+.page__subtitle {
+  margin: 0.45rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.dialog__header-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.dialog__header-actions button {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.dialog__refresh {
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.dialog__refresh::after {
+  content: '…';
+  animation: ellipsis 1.2s steps(4, end) infinite;
+}
+
+.dialog__body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1.25rem 1.5rem 1.5rem;
+  scrollbar-gutter: stable both-edges;
+}
+
+.category-section + .category-section {
+  margin-top: 1.5rem;
+}
+
+.category-section__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.7rem;
+}
+
+.category-section__heading h3 {
+  margin: 0;
+}
+
+.category-section__heading p {
+  margin: 0.2rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.count-badge {
+  flex-shrink: 0;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-quiet);
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.category-row--system {
+  background: transparent;
+}
+
+.category-row__name {
+  flex: 1;
+  font-weight: 600;
+}
+
+.category-empty {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 1rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-quiet);
+}
+
+.category-empty__icon {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 1.25rem;
+  font-weight: 400;
+}
+
+.category-empty strong {
+  display: block;
+  font-size: 0.875rem;
+}
+
+.category-empty p {
+  margin: 0.15rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
 }
 
 .category-list {
@@ -717,6 +861,59 @@ p[role='status']::after {
 .category-create input,
 .category-create select {
   width: 100%;
+}
+
+/* The create form remains visible near the bottom while a long category list
+   scrolls, so the primary action never feels lost. */
+.category-create {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin: 1.5rem 0 0;
+  padding: 1.1rem;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 -0.75rem 1.25rem -1rem var(--surface);
+  backdrop-filter: blur(10px);
+}
+
+.page__title-group {
+  min-width: 0;
+}
+
+.page__title-group .page__eyebrow {
+  margin-bottom: 0.45rem;
+}
+
+.page__subtitle {
+  max-width: 38rem;
+}
+
+@media (max-width: 640px) {
+  .dialog-backdrop {
+    padding: 0.5rem;
+  }
+
+  .dialog {
+    width: 100%;
+    max-height: calc(100dvh - 1rem);
+    border-radius: var(--radius);
+  }
+
+  .dialog__header,
+  .dialog__body {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .dialog__description {
+    max-width: 16rem;
+  }
+
+  .category-section__heading {
+    align-items: center;
+  }
 }
 
 /* ============================================================================
