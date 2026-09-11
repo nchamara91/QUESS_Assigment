@@ -41,7 +41,7 @@ type ManageCategoriesDialogProps = {
 
 /** System categories are read-only; custom ones can be renamed, recoloured and deleted. */
 export function ManageCategoriesDialog({ open, onClose }: ManageCategoriesDialogProps) {
-  const { data, isLoading, error } = useListTransactionCategoriesQuery({}, { skip: !open })
+  const { data, isLoading, error, refetch } = useListTransactionCategoriesQuery({}, { skip: !open })
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
   const restoreFocusRef = useRef<HTMLElement | null>(null)
@@ -148,7 +148,7 @@ export function ManageCategoriesDialog({ open, onClose }: ManageCategoriesDialog
           )}
         </ul>
 
-        <CreateCategoryForm />
+        <CreateCategoryForm onCreated={() => void refetch()} />
       </div>
     </div>
   )
@@ -223,7 +223,7 @@ function CustomCategoryRow({ category }: { category: TransactionCategory }) {
   )
 }
 
-function CreateCategoryForm() {
+function CreateCategoryForm({ onCreated }: { onCreated: () => void }) {
   const [name, setName] = useState('')
   const [color, setColor] = useState<TransactionCategoryColor>('blue')
   const [message, setMessage] = useState<string | null>(null)
@@ -234,6 +234,7 @@ function CreateCategoryForm() {
     setMessage(null)
     try {
       await createCategory({ transactionCategoryCreate: { name, color } }).unwrap()
+      onCreated()
       setName('')
       setColor('blue')
     } catch (err) {

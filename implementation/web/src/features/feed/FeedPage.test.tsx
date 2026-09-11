@@ -8,7 +8,13 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import categoriesFixture from '../../../../../fixtures/categories.org-a.system.json'
 import { createStore } from '../../api/store'
-import { CATEGORIES_API, CORRELATION_ID, assignmentRequests, server } from '../../test/server'
+import {
+  CATEGORIES_API,
+  CORRELATION_ID,
+  assignmentRequests,
+  requestCounters,
+  server,
+} from '../../test/server'
 import { FeedPage } from './FeedPage'
 
 type User = ReturnType<typeof userEvent.setup>
@@ -63,6 +69,7 @@ function failAssignmentWith(status: number, code: string): void {
 describe('FeedPage', () => {
   beforeEach(() => {
     assignmentRequests.length = 0
+    requestCounters.categoryList = 0
   })
 
   it('renders the feed and makes exactly one assignments lookup for the page', async () => {
@@ -103,6 +110,21 @@ describe('FeedPage', () => {
       expect(within(row).getByRole('alert')).toHaveTextContent(/no longer available/i)
     })
     expect(within(row).getByRole('combobox')).toHaveValue('')
+  })
+
+  it('refetches the category list after adding a category', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await firstRow()
+
+    await user.click(screen.getByRole('button', { name: 'Manage categories' }))
+    const initialRequests = requestCounters.categoryList
+    await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Marketing')
+    await user.click(screen.getByRole('button', { name: 'Add category' }))
+
+    await waitFor(() => {
+      expect(requestCounters.categoryList).toBeGreaterThan(initialRequests)
+    })
   })
 
   it('manage dialog: focus moves in, axe is clean, Escape closes and focus returns', async () => {

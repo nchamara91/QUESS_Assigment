@@ -10,6 +10,8 @@ export const CATEGORIES_API = 'http://localhost:8081'
 
 /** Every assignments lookup, so a test can assert there is exactly one per page. */
 export const assignmentRequests: string[][] = []
+/** Category list calls, so create can prove it refetches the open dialog. */
+export const requestCounters = { categoryList: 0 }
 
 const transactions = transactionsFixture.transactions
 
@@ -50,12 +52,32 @@ export const handlers = [
     return HttpResponse.json({ data: found, correlation_id: CORRELATION_ID })
   }),
 
-  http.get(`${CATEGORIES_API}/api/v1/app/transaction-categories`, () =>
-    HttpResponse.json({
+  http.get(`${CATEGORIES_API}/api/v1/app/transaction-categories`, () => {
+    requestCounters.categoryList += 1
+    return HttpResponse.json({
       data: { items: categoriesFixture.items },
       correlation_id: CORRELATION_ID,
-    }),
-  ),
+    })
+  }),
+
+  http.post(`${CATEGORIES_API}/api/v1/app/transaction-categories`, async ({ request }) => {
+    const body = (await request.json()) as { name: string; color: string }
+    return HttpResponse.json(
+      {
+        data: {
+          category_id: '11111111-1111-4111-8111-111111111111',
+          kind: 'custom',
+          code: null,
+          name: body.name,
+          color: body.color,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        correlation_id: CORRELATION_ID,
+      },
+      { status: 201 },
+    )
+  }),
 
   http.get(`${CATEGORIES_API}/api/v1/app/transaction-category-assignments`, ({ request }) => {
     const url = new URL(request.url)
