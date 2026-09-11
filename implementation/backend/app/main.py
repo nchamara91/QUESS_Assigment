@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 
 from app.api import assignments, categories
 from app.config import get_settings
@@ -14,6 +16,34 @@ from app.db import create_engine_and_factory
 from app.errors import register_exception_handlers
 from app.logging import RequestContextMiddleware, configure_logging
 from app.upstream.transactions import TransactionsClient
+
+# Operations for which the contract declares no 422. FastAPI adds one
+# automatically to every operation with validated parameters (headers and path
+# ids included), so it is stripped after generation to keep the published
+# document identical to the contract. The runtime behaviour is unchanged.
+_OPERATIONS_WITHOUT_422: tuple[tuple[str, str], ...] = (
+    ("get", "/api/v1/app/transaction-categories"),
+    ("delete", "/api/v1/app/transaction-categories/{category_id}"),
+)
+
+
+class CategoriesApp(FastAPI):
+    """The application, publishing an OpenAPI document trimmed to the contract."""
+
+    def openapi(self) -> dict[str, Any]:
+        if self.openapi_schema is not None:
+            return self.openapi_schema
+        schema = get_openapi(
+            title=self.title,
+            version=self.version,
+            openapi_version=self.openapi_version,
+            routes=self.routes,
+        )
+        for method, path in _OPERATIONS_WITHOUT_422:
+            responses: dict[str, Any] = schema["paths"][path][method]["responses"]
+            responses.pop("422", None)
+        self.openapi_schema = schema
+        return schema
 
 
 @asynccontextmanager
@@ -36,7 +66,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 def create_app() -> FastAPI:
     """Build the ASGI application."""
     settings = get_settings()
-    app = FastAPI(
+    app = CategoriesApp(
         title="Transaction categories (public)",
         version="0.1.0",
         lifespan=lifespan,

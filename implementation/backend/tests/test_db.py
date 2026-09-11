@@ -70,20 +70,30 @@ async def test_two_concurrent_creates_yield_one_success_one_conflict(
     assert sorted(results) == ["ok", "transaction_category_name_taken"]
 
 
-class _UnavailableUpstream(TransactionsClient):
-    """An upstream that is down, without any HTTP."""
+class _FakeUpstream(TransactionsClient):
+    """An upstream that always answers with one outcome, without any HTTP."""
 
-    def __init__(self) -> None:
+    def __init__(self, outcome: UpstreamOutcome) -> None:
         super().__init__("http://unused", 0.001)
+        self._outcome = outcome
 
     async def get_transaction(
         self, transaction_id: str, *, authorization: str, organization_id: str
     ) -> UpstreamOutcome:
-        return UpstreamOutcome.UNAVAILABLE
+        return self._outcome
 
 
-async def test_unavailable_upstream_writes_nothing(
+@pytest.mark.parametrize(
+    ("outcome", "code"),
+    [
+        (UpstreamOutcome.NOT_FOUND, "transaction_not_found"),
+        (UpstreamOutcome.UNAVAILABLE, "transactions_unavailable"),
+    ],
+)
+async def test_failed_upstream_writes_nothing(
     factory: async_sessionmaker[AsyncSession],
+    outcome: UpstreamOutcome,
+    code: str,
 ) -> None:
     organisation_id = uuid.uuid4()
     transaction_id = "txn_" + "b" * 32
@@ -102,9 +112,9 @@ async def test_unavailable_upstream_writes_nothing(
                     category_id=category_id,
                     subject="idp|owner-a",
                     authorization="Bearer token",
-                    upstream=_UnavailableUpstream(),
+                    upstream=_FakeUpstream(outcome),
                 )
-        assert caught.value.code == "transactions_unavailable"
+        assert caught.value.code == code
 
         async with factory() as session:
             row = await session.get(TransactionCategoryAssignment, (organisation_id, transaction_id))

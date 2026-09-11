@@ -13,6 +13,7 @@ from app.domain.models import TransactionCategory
 from app.domain.schemas import (
     CONFLICT_RESPONSES,
     ERROR_RESPONSES,
+    NOT_FOUND_ONLY_RESPONSES,
     NOT_FOUND_RESPONSES,
     CategoryCreate,
     CategoryEnvelope,
@@ -97,7 +98,7 @@ async def update_transaction_category(
     status_code=status.HTTP_204_NO_CONTENT,
     operation_id="deleteTransactionCategory",
     summary="Delete a custom category",
-    responses={**ERROR_RESPONSES, **NOT_FOUND_RESPONSES, **CONFLICT_RESPONSES},
+    responses={**ERROR_RESPONSES, **NOT_FOUND_ONLY_RESPONSES, **CONFLICT_RESPONSES},
 )
 async def delete_transaction_category(
     category_id: _CategoryId,

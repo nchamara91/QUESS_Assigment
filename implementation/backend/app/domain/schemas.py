@@ -147,6 +147,11 @@ NOT_FOUND_RESPONSES: dict[int | str, dict[str, object]] = {
     404: {"model": ErrorEnvelope, "description": "`transaction_category_not_found` / `transaction_not_found`"},
     422: {"model": ValidationErrorEnvelope, "description": "Validation map, keyed by field name"},
 }
+# Delete declares no 422 in the contract (a malformed id still answers 422 at
+# runtime; that gap is reported in docs/DECISIONS.md).
+NOT_FOUND_ONLY_RESPONSES: dict[int | str, dict[str, object]] = {
+    404: {"model": ErrorEnvelope, "description": "`transaction_category_not_found`"},
+}
 CONFLICT_RESPONSES: dict[int | str, dict[str, object]] = {
     409: {"model": ErrorEnvelope, "description": "Conflict"},
 }

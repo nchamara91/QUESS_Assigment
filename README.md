@@ -121,7 +121,9 @@ clears categories optimistically with rollback, and manages custom categories;
 
 Known gaps before this is production-ready, tracked here rather than hidden:
 
-- the manage dialog does not yet restore focus to its trigger on close;
-- the mock's `X-Mock-Delay-Ms` / `X-Mock-Fail-Status` headers are not yet wired
-  into a documented manual resilience walk-through (the failure paths are
-  covered by the MSW component test and the fake-upstream unit tests).
+- the page is verified against both API targets at the HTTP level (runtime
+  `config.js` injection and CORS); there is no automated browser end-to-end run;
+- the mock's `X-Mock-Delay-Ms` / `X-Mock-Fail-Status` failure injection is a
+  manual walk-through (see `docs/IMPLEMENTATION.md`); the failure paths
+  themselves are covered by the MSW component tests and the fake-upstream
+  backend tests.

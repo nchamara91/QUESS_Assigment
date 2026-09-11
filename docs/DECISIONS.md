@@ -40,6 +40,11 @@ alternative, and why.
   model-level problems to `non_field_errors`.
 - **A malformed `X-Organization-Id` is `400 validation_error`,** not a 422:
   it is a domain error on a header, not a request body field.
+- **The published OpenAPI is trimmed to the contract.** FastAPI adds a `422`
+  response to every operation with validated parameters, including the two where
+  the contract declares none (list and delete). A small `openapi()` override
+  strips those two so our document matches the contract operation for operation;
+  runtime behaviour is unchanged and pinned by `tests/test_openapi.py`.
 
 ## Web
 
@@ -69,6 +74,14 @@ alternative, and why.
 - **One `tsconfig`, no project references.** `tsconfig.node.json` only added
   build-mode complexity; `tsc --noEmit` over `src` is the single check, with
   `vite.config.ts` linted separately without type information.
+- **Loaded pages are merged and de-duplicated by `transaction_id`.** The feed can
+  shift between fetches (a new transaction pushes page 2 down); collapsing
+  repeats keeps a row from appearing twice. The merge lives in
+  `src/lib/paging.ts` and is unit-tested.
+- **The manage dialog manages focus itself:** on open it remembers the trigger
+  and focuses its close button, Tab is trapped inside, and Escape closes and
+  returns focus to the trigger. All controls are native elements, so the rest of
+  the keyboard behaviour is the platform's.
 
 ## Process
 
@@ -154,3 +167,7 @@ Reported, not changed; the behaviour we implemented is next to each.
    `ErrorResponse`, `ValidationErrorResponse`, `CoreTransactionId`). Codegen
    emits them into separate modules, so there is no runtime collision; a consumer
    that imports both must alias them. We did not touch the contracts.
+3. **`DELETE /transaction-categories/{category_id}` with a malformed id answers
+   422** under the shared validation conventions, but the operation declares no
+   422 response (its sibling PATCH does). We keep the behaviour, omit the 422
+   from our published OpenAPI to match the contract, and report the gap here.

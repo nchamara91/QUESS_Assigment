@@ -11,6 +11,8 @@ import { createStore } from '../../api/store'
 import { CATEGORIES_API, CORRELATION_ID, assignmentRequests, server } from '../../test/server'
 import { FeedPage } from './FeedPage'
 
+type User = ReturnType<typeof userEvent.setup>
+
 function renderPage(): ReturnType<typeof render> {
   const store = createStore()
   return render(
@@ -27,6 +29,35 @@ async function firstRow(): Promise<HTMLElement> {
     throw new Error('expected at least one transaction row')
   }
   return row
+}
+
+/** Select a category on the first row and assert the optimistic value is shown. */
+async function changeCategoryOnFirstRow(user: User): Promise<HTMLElement> {
+  const row = await firstRow()
+  const select = within(row).getByRole('combobox')
+  const category = categoriesFixture.items[0]
+  if (category === undefined) {
+    throw new Error('fixture has no categories')
+  }
+  await user.selectOptions(select, category.category_id)
+  expect(select).toHaveValue(category.category_id)
+  return row
+}
+
+function failAssignmentWith(status: number, code: string): void {
+  server.use(
+    http.put(`${CATEGORIES_API}/api/v1/app/transactions/:transactionId/category`, async () => {
+      await delay(50)
+      return HttpResponse.json(
+        {
+          type: 'Error',
+          correlation_id: CORRELATION_ID,
+          error: { code, message: 'injected failure' },
+        },
+        { status },
+      )
+    }),
+  )
 }
 
 describe('FeedPage', () => {
@@ -50,41 +81,48 @@ describe('FeedPage', () => {
     expect(results.violations).toEqual([])
   })
 
-  it('rolls an optimistic category change back on failure and explains why', async () => {
-    serverFailure()
+  it('rolls an optimistic category change back on a 503 and explains why', async () => {
+    failAssignmentWith(503, 'transactions_unavailable')
     const user = userEvent.setup()
     renderPage()
-    const row = await firstRow()
-    const select = within(row).getByRole('combobox')
-    const category = categoriesFixture.items[0]
-    if (category === undefined) {
-      throw new Error('fixture has no categories')
-    }
-
-    await user.selectOptions(select, category.category_id)
-    // Optimistic: the new value is shown before the server answers.
-    expect(select).toHaveValue(category.category_id)
+    const row = await changeCategoryOnFirstRow(user)
 
     await waitFor(() => {
       expect(within(row).getByRole('alert')).toHaveTextContent(/unavailable/i)
     })
-    // Rolled back to the server state.
-    expect(select).toHaveValue('')
+    expect(within(row).getByRole('combobox')).toHaveValue('')
+  })
+
+  it('rolls an optimistic category change back on a 404 and explains why', async () => {
+    failAssignmentWith(404, 'transaction_not_found')
+    const user = userEvent.setup()
+    renderPage()
+    const row = await changeCategoryOnFirstRow(user)
+
+    await waitFor(() => {
+      expect(within(row).getByRole('alert')).toHaveTextContent(/no longer available/i)
+    })
+    expect(within(row).getByRole('combobox')).toHaveValue('')
+  })
+
+  it('manage dialog: focus moves in, axe is clean, Escape closes and focus returns', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await firstRow()
+
+    const trigger = screen.getByRole('button', { name: 'Manage categories' })
+    await user.click(trigger)
+
+    const dialog = screen.getByRole('dialog', { name: 'Manage categories' })
+    expect(screen.getByRole('button', { name: 'Close categories dialog' })).toHaveFocus()
+
+    const results = await act(async () => axe(dialog))
+    expect(results.violations).toEqual([])
+
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await waitFor(() => {
+      expect(trigger).toHaveFocus()
+    })
   })
 })
-
-function serverFailure(): void {
-  server.use(
-    http.put(`${CATEGORIES_API}/api/v1/app/transactions/:transactionId/category`, async () => {
-      await delay(50)
-      return HttpResponse.json(
-        {
-          type: 'ServiceUnavailableError',
-          correlation_id: CORRELATION_ID,
-          error: { code: 'transactions_unavailable', message: 'down' },
-        },
-        { status: 503 },
-      )
-    }),
-  )
-}

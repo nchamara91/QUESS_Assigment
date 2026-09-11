@@ -9,6 +9,7 @@ import {
 import type { Transaction } from '../../api/generated/transactionsApi'
 import { useListTransactionsQuery } from '../../api/generated/transactionsApi'
 import { errorMessage } from '../../lib/errors'
+import { accumulatePage } from '../../lib/paging'
 import { ManageCategoriesDialog } from '../category/ManageCategoriesDialog'
 import { useCategorisation } from '../category/useCategorisation'
 import { TransactionDrawer } from './TransactionDrawer'
@@ -30,9 +31,7 @@ export function FeedPage() {
     if (payload === undefined) {
       return
     }
-    setItems((previous) =>
-      payload.data.page.page === 1 ? payload.data.items : [...previous, ...payload.data.items],
-    )
+    setItems((previous) => accumulatePage(previous, payload))
   }, [feed.data])
 
   // One assignments lookup per loaded page, never one per row.

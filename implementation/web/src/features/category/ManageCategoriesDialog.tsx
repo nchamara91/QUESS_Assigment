@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import type {
@@ -25,6 +25,15 @@ const COLORS: TransactionCategoryColor[] = [
   'purple',
 ]
 
+const FOCUSABLE = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(', ')
+
 type ManageCategoriesDialogProps = {
   open: boolean
   onClose: () => void
@@ -33,6 +42,23 @@ type ManageCategoriesDialogProps = {
 /** System categories are read-only; custom ones can be renamed, recoloured and deleted. */
 export function ManageCategoriesDialog({ open, onClose }: ManageCategoriesDialogProps) {
   const { data, isLoading, error } = useListTransactionCategoriesQuery({}, { skip: !open })
+  const dialogRef = useRef<HTMLDivElement | null>(null)
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null)
+  const restoreFocusRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+    // Remember where the user came from and land focus inside the dialog, so
+    // keyboard and screen-reader users are not stranded on the page behind it.
+    restoreFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
+    closeButtonRef.current?.focus()
+    return () => {
+      restoreFocusRef.current?.focus()
+    }
+  }, [open])
 
   useEffect(() => {
     if (!open) {
@@ -41,6 +67,34 @@ export function ManageCategoriesDialog({ open, onClose }: ManageCategoriesDialog
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
         onClose()
+        return
+      }
+      if (event.key !== 'Tab') {
+        return
+      }
+      const root = dialogRef.current
+      if (root === null) {
+        return
+      }
+      const focusable = Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE))
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (first === undefined || last === undefined) {
+        return
+      }
+      const active = document.activeElement
+      if (!root.contains(active)) {
+        // focus somehow left the modal dialog: pull it back in
+        event.preventDefault()
+        first.focus()
+        return
+      }
+      if (event.shiftKey && active === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault()
+        first.focus()
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -55,10 +109,21 @@ export function ManageCategoriesDialog({ open, onClose }: ManageCategoriesDialog
 
   return (
     <div className="dialog-backdrop">
-      <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="manage-categories-title">
+      <div
+        className="dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="manage-categories-title"
+        ref={dialogRef}
+      >
         <div className="dialog__header">
           <h2 id="manage-categories-title">Manage categories</h2>
-          <button type="button" onClick={onClose} aria-label="Close categories dialog">
+          <button
+            type="button"
+            ref={closeButtonRef}
+            onClick={onClose}
+            aria-label="Close categories dialog"
+          >
             Close
           </button>
         </div>
