@@ -94,8 +94,7 @@ clears categories optimistically with rollback, and manages custom categories;
 
 Known gaps before this is production-ready, tracked here rather than hidden:
 
-- the concurrency test (two identical creates) is described but not yet in the
-  suite; the unique index on `name_folded` is what makes it hold;
-- the upstream failure test uses a fake client but does not yet assert the
-  database is untouched;
-- the manage dialog does not yet restore focus to its trigger on close.
+- the manage dialog does not yet restore focus to its trigger on close;
+- the mock's `X-Mock-Delay-Ms` / `X-Mock-Fail-Status` headers are not yet wired
+  into a documented manual resilience walk-through (the failure paths are
+  covered by the MSW component test and the fake-upstream unit tests).
